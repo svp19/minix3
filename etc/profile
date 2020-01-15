@@ -1,0 +1,36 @@
+# Default system-wide login shell profile.
+
+# Activate emacs keybindings and command line history support
+set -o emacs
+set -o tabcomplete
+
+# Set the default path
+PATH=/usr/local/bin:/usr/pkg/bin:/usr/bin:/bin:/usr/games
+
+# Add ~/bin, iff it is present
+if [ -e ${HOME}/bin ]; then
+	PATH=${HOME}/bin:${PATH}
+fi
+
+# Add sbin for root
+if [ "x$(id -u)" = "x0" ]; then
+	PATH=/usr/local/sbin:/usr/pkg/sbin:/usr/sbin:/sbin:${PATH}
+
+	if [ -e ${HOME}/sbin ]; then
+		PATH=${HOME}/sbin:${PATH}
+	fi
+fi
+
+# Set library path
+export LD_LIBRARY_PATH="/usr/local/lib:/usr/pkg/lib:/usr/lib:/lib"
+
+# Set the timezone
+export TZ=GMT0
+RC_TZ=/etc/rc.timezone
+
+if [ -f ${RC_TZ} ]; then
+	. ${RC_TZ}
+fi
+
+export PATH TZ
+

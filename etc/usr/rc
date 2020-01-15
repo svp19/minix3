@@ -1,0 +1,436 @@
+# /usr/etc/rc - continued system initialization.
+
+RANDOM_FILE=/usr/adm/random.dat
+LOCAL_FILE=/usr/etc/rc.local
+
+ARCH="`sysenv arch`"
+
+if [ ! "$ARCH" ]
+then    # Older kernels do not provide an arch sysenv variable.
+        # We assume we are on x86 then, as existing systems with
+        # kernel and userland (i.e. this script) unsynchronized
+        # will be x86.
+        ARCH=i386
+fi
+
+# Get $SERVICES_DIRS
+. /etc/rc.conf
+
+# Directories to find services in
+if [ ! "$SERVICES_DIRS" ]
+then	SERVICES_DIRS=/service
+fi
+
+# Booting from cd?
+bootcd="`/bin/sysenv bootcd`"
+
+case "$#:$1" in
+1:autoboot)
+    action=start
+    ;;
+1:start|1:stop|1:down)
+    action=$1
+    ;;
+*)  echo >&2 "Usage: $0 autoboot|start|stop|down"
+    exit 1
+esac
+
+if [ -f "$LOCAL_FILE" ]
+then	. "$LOCAL_FILE" $1
+fi
+
+disabled()
+{
+    ifs="$IFS"; IFS=,
+    for skip in `sysenv disable`
+    do 
+        if [ "$skip" = "$1" ]
+	then 	 
+                IFS="$ifs"; unset ifs
+		return 0
+	fi
+    done
+    IFS="$ifs"; unset ifs
+    return 1
+}
+
+daemonize()
+{
+    # Function to start a daemon, if it exists.
+    local IFS=':'
+    local name="$1"
+    test "$1" = tcpd && name="$2"
+
+    for dir in $PATH
+    do
+	if [ -f "$dir/$1" ]
+	then
+
+            # check if this service is disabled at the boot monitor.
+            if disabled $name; then return; fi
+
+	    echo -n " $name"
+	    "$@" &
+	    return
+	fi
+    done
+}
+
+up()
+{
+    # Function to dynamically start a system service
+    opt=""
+    prefix=$(expr "$1 " : '\(-\)')
+    if [ "$prefix" = "-" ];
+    then
+         opt=$1
+         shift
+    fi
+    service=$1
+    shift
+
+    # First check if this service is disabled at the boot monitor.
+    if disabled $service; then return; fi
+
+    # Service is not disabled. Try to bring it up.
+    found=""
+    for dir in $SERVICES_DIRS
+    do	bin=$dir/$service
+	if [ -x $bin -a -z "$found" ]
+	then	service $opt up $bin "$@" 
+    		echo -n " $service"
+		found=yes
+	fi
+    done
+    if [ -z "$found" ]
+    then	echo " ($service not found in $SERVICES_DIRS)"
+    fi
+}
+
+get_eth_labels() {
+  # Filter out the non-vlan ethernet entries from inet.conf.
+  # Produce as output a list of "drivername_instancenr"-formatted labels.
+  sed 's/\008/ /g' /etc/inet.conf | \
+    sed -n 's/^ *eth[0-9][0-9]* *\([^ ][^ ]*\) *\([0-9][0-9]*\).*$/\1_\2/p' | \
+    grep -v '^vlan_'
+}
+
+# Detect expansion boards on the BeagleBone and load the proper drivers.
+capemgr() {
+
+    # Probe each possible cape EEPROM slave address for a BeagleBone cape.
+    for slave_addr in 54 55 56 57
+    do
+
+        # See if there is a readable EEPROM with address ${slave_addr}.
+        eepromread -f /dev/i2c-3 -a 0x${slave_addr} > /dev/null 2>&1
+        RESULT=$?
+	if [ $RESULT -eq 0 ]
+	then
+
+	    # Found an alive EEPROM. Try reading the cape name.
+            CAPE=`eepromread -i -f /dev/i2c-3 -a 0x${slave_addr} | \
+	        sed -n 's/^PART_NUMBER     : \(.*\)$/\1/p' | \
+		sed -e 's/\.*$//g'` # Strip trailing periods.
+
+	    # Look for a cape specific RC script.
+            if [ -x /etc/rc.capes/${CAPE} ]
+	    then
+
+	        # CAT24C256 EEPROM -- all capes have this chip.
+		test -e /dev/eepromb3s${slave_addr} || \
+		    (cd /dev && MAKEDEV eepromb3s${slave_addr})
+		up cat24c256 -dev /dev/eepromb3s${slave_addr} \
+		    -label cat24c256.3.${slave_addr} \
+		    -args "bus=3 address=0x${slave_addr}"
+
+                # Load the drivers for the cape and do any other configuration.
+		. "/etc/rc.capes/${CAPE}"
+
+	    else
+
+		echo ""
+	        echo "** UNSUPPORTED CAPE: ${CAPE}"
+		echo ""
+
+	    fi
+	fi
+    done
+}
+
+DAEMONS=/etc/rc.daemons
+
+case $action in
+start|autoboot)
+    # Select console font.
+    test -f /etc/font && loadfont /etc/font </dev/console
+
+    # Cleanup.
+    rm -rf /tmp/* /usr/run/* /usr/spool/lpd/* /usr/spool/locks/*
+
+    # Start servers and drivers set at the boot monitor.
+    echo -n "Starting services:"
+    up -n random -dev /dev/random -period 3HZ
+
+    # load random number generator
+    if [ -f $RANDOM_FILE ]
+    then
+    	cat < $RANDOM_FILE >/dev/random
+    	# overwrite $RANDOM_FILE. We don't want to use this data again
+    	dd if=/dev/random of=$RANDOM_FILE bs=1024 count=1 2> /dev/null
+    fi
+
+    # start network driver instances for all configured ethernet devices
+    for label in $(get_eth_labels); do
+        driver=$(echo $label | sed 's/\(.*\)_.*/\1/')
+        instance=$(echo $label | sed 's/.*_//')
+        eval arg=\$${label}_arg
+        if [ ! -z "$arg" ]; then arg=" $arg"; fi
+        arg="-args \"instance=$instance$arg\""
+        eval up $driver -label $label $arg -period 5HZ
+    done
+    if [ X`/bin/sysenv lwip` = Xyes ]
+    then
+	up lwip -script /etc/rs.inet -dev /dev/ip
+    else
+	up inet -script /etc/rs.inet -dev /dev/ip
+    fi
+
+    up pty -dev /dev/ptyp0
+
+    up uds -dev /dev/uds
+
+    up -n ipc
+
+    up log -dev /dev/klog
+
+    if [ $ARCH = i386 ]
+    then
+	up -n printer -dev /dev/lp -period 10HZ
+	# start VirtualBox time sync driver if the device is there
+	if grep '^[^ ]* [^ ]* 80EE:CAFE ' /proc/pci >/dev/null; then
+		up -n vbox -period 10HZ
+	fi
+    fi
+
+    echo .
+
+    # Network initialization.
+    (: </dev/tcp) 2>/dev/null && net=t	# Is there a TCP/IP server?
+
+    echo -n "Starting daemons:"
+    daemonize update
+
+    # Ugly error message when starting cron from CD.
+    # (and cron unnecessary then so..)
+    if [ ! -f /CD ]
+    then	daemonize cron
+    else	mkdir /tmp/log
+    		rm -f /var/log || true
+		ln -s /tmp/log /var/log || true
+		. /etc/rc.cd
+    fi
+    # syslogd has not been started yet
+    rm -f /var/run/syslogd.pid
+    daemonize syslogd
+    echo .
+
+    # i2c only supported on ARM at the moment
+    if [ $ARCH = earm ]
+    then
+	echo -n "Starting i2c subsystem: "
+	for bus in 1 2 3
+	do
+		test -e /dev/i2c-${bus} || (cd /dev && MAKEDEV i2c-${bus})
+		up i2c -dev /dev/i2c-${bus} -label i2c.${bus} \
+			-args instance=${bus}
+	done
+	echo .
+
+	BOARD_NAME=`sysenv board`
+	case "${BOARD_NAME}" in
+
+		ARM-ARMV7-TI-BB-WHITE)
+			echo "Running on a BeagleBone"
+			echo -n "Starting i2c device drivers: "
+
+			# start EEPROM driver for reading board info
+			test -e /dev/eepromb1s50 || \
+				(cd /dev && MAKEDEV eepromb1s50)
+			up cat24c256 -dev /dev/eepromb1s50 \
+				-label cat24c256.1.50 \
+				-args 'bus=1 address=0x50'
+
+			# Start TPS65217 driver for power management.
+			up tps65217 -label tps65217.1.24 \
+			        -args 'bus=1 address=0x24'
+
+			# check for the presence of a display
+			eepromread -f /dev/i2c-2 -n > /dev/null 2>&1
+			RESULT=$?
+			if [ $RESULT -eq 0 ]
+			then
+				# start eeprom driver for reading EDID.
+				test -e /dev/eepromb2s50 || \
+					(cd /dev && MAKEDEV eepromb2s50)
+				up cat24c256 -dev /dev/eepromb2s50 \
+					-label cat24c256.2.50 \
+					-args 'bus=2 address=0x50'
+
+				# start frame buffer
+				#up fb -dev /dev/fb0 -args edid.0=cat24c256.2.50
+				# fb hasn't been ported to AM335X yet.
+			fi
+
+			if [ -e /service/usbd ]
+			then
+				echo "Starting USBD"
+				up usbd
+			fi
+			# Detect expansion boards and start drivers.
+			capemgr
+
+			;;
+
+		ARM-ARMV7-TI-BB-BLACK)
+			echo "Running on a BeagleBone Black"
+			echo -n "Starting i2c device drivers: "
+
+			# start EEPROM driver for reading board info
+			test -e /dev/eepromb1s50 || \
+				(cd /dev && MAKEDEV eepromb1s50)
+			up cat24c256 -dev /dev/eepromb1s50 \
+				-label cat24c256.1.50 \
+				-args 'bus=1 address=0x50'
+
+			# Start TPS65217 driver for power management.
+			up tps65217 -label tps65217.1.24 \
+			        -args 'bus=1 address=0x24'
+
+			# Start TDA19988 driver for reading EDID.
+			up tda19988 -label tda19988.1.3470 -args \
+				'cec_bus=1 cec_address=0x34 hdmi_bus=1 hdmi_address=0x70'
+
+			# start frame buffer
+			#up fb -dev /dev/fb0 -args edid.0=tda19988.1.3470
+			# fb hasn't been ported to AM335X yet.
+
+			if [ -e /service/usbd ]
+			then
+				echo "Starting USBD"
+				up usbd
+			fi
+			# Detect expansion boards and start drivers.
+			capemgr
+
+			;;
+
+		ARM-ARMV7-TI-BBXM-GENERIC)
+			echo "Running on a BeagleBoard-xM"
+			echo -n "Starting i2c device drivers: "
+
+			# Start TPS65950 driver for power management.
+			up tps65950 -label tps65950.1.48 \
+				-args 'bus=1 address=0x48'
+
+			# Set the system time to the time in the TPS65950's RTC
+			readclock
+
+			# check for the presence of a display
+			eepromread -f /dev/i2c-3 -n > /dev/null 2>&1
+			RESULT=$?
+			if [ $RESULT -eq 0 ]
+			then
+				# start eeprom driver for reading edid
+				test -e /dev/eepromb3s50 || \
+					(cd /dev && MAKEDEV eepromb3s50)
+				up cat24c256 -dev /dev/eepromb3s50 \
+					-label cat24c256.3.50 \
+					-args 'bus=3 address=0x50'
+
+				# start frame buffer
+				up fb -dev /dev/fb0 -args edid.0=cat24c256.3.50
+			fi
+
+			;;
+	esac
+
+	echo .
+    fi
+
+    if [ "$net" ]
+    then
+	if [ -f /etc/rc.net ]
+	then
+	    # Let a customized TCP/IP initialization script figure it out.
+	    . /etc/rc.net
+	else
+	    # Standard network daemons.
+    	    echo -n "Starting networking:"
+	    if grep -s 'psip0.*default' /etc/inet.conf >/dev/null
+	    then	ifconfig -h 10.0.0.1
+	    else
+		    if [ X`/bin/sysenv lwip` = Xyes ]
+		    then
+			dhcpd --lwip &
+			echo -n " dhcpd"
+		    else
+			daemonize dhcpd
+		    fi
+	    fi
+	    daemonize nonamed -L
+	    if [ -f "$DAEMONS" ]
+	    then	. "$DAEMONS"
+	    fi
+	    # The last daemon has been started, so close the list:
+	    echo .
+	fi
+    fi
+
+    if [ "$net" ]
+    then
+	# Get the nodename from the DNS and set it.
+	trap '' 2
+	intr -t 20 hostaddr -h
+	trap 2
+    fi
+
+    # Recover files being edited when the system crashed.
+    test -f /usr/bin/elvprsv && elvprsv /usr/tmp/elv*
+
+    # Run the daily cleanup on systems that are not on at night.
+    test -f /usr/etc/daily && sh /usr/etc/daily boot &
+;;
+stop|down)
+    	# Save random data, if /usr is mounted rw.
+	if grep ' \/usr .*rw.*' /etc/mtab >/dev/null
+	then
+	  if dd if=/dev/random of=$RANDOM_FILE.new bs=1024 count=1 2>/dev/null
+    	  then
+    		mv $RANDOM_FILE.new $RANDOM_FILE
+	  else
+		echo 'Failed to save random data.'
+	  fi
+	fi
+esac
+
+d=
+# Let packages run their own scripts
+for d in /usr/local/etc/rc.d /usr/pkg/etc/rc.d
+do
+if [ -d "$d" -a -z "$bootcd" ]
+then	( if cd $d
+	then
+		echo -n "Local packages ($action): "
+		for f in *
+		do
+			if [ -x "$f" ]
+			then	echo -n "$f "
+				sh "$f" "$action"
+			fi
+		done
+		echo " done."
+	fi
+	)
+fi
+done

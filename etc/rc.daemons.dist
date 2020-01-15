@@ -1,0 +1,5 @@
+daemonize talkd
+daemonize tcpd shell in.rshd
+daemonize tcpd telnet in.telnetd
+daemonize tcpd ftp /usr/libexec/ftpd
+daemonize tcpd finger /usr/libexec/fingerd

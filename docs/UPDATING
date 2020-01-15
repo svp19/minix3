@@ -1,0 +1,11 @@
+20140801:
+	As the ABI went under heavy changes it is not possible to do a source
+	upgrade (make build) between:
+		commit 7ebdb97a28234e0181f93a8b786331dda507482
+	        Date:   Sun Feb 16 20:08:20 2014 +0000
+	and
+		commit f1deff716ea30b28693c16f8e48ba1a369e2e922
+		Date:   Thu Jul 31 18:36:24 2014 +0200
+
+	WARNING: Attempting to do so will break your system beyond repair, and
+		 require a full reinstallation. You have been warned.

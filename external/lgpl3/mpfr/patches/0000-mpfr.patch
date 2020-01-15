@@ -1,0 +1,36 @@
+diff -rNU3 dist.orig/Makefile.in dist.nbsd/Makefile.in
+--- dist.orig/Makefile.in	2013-03-13 16:38:22.000000000 +0100
++++ dist.nbsd/Makefile.in	2013-12-06 20:13:14.174967585 +0100
+@@ -337,8 +337,12 @@
+ 	$(SHELL) ./config.status --recheck
+ 
+ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
++	@echo "NOT REBUILDING $@"
++NetBSD_DISABLED_configure:
+ 	$(am__cd) $(srcdir) && $(AUTOCONF)
+ $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
++	@echo "NOT REBUILDING $@"
++NetBSD_DISABLED_aclocal:
+ 	$(am__cd) $(srcdir) && $(ACLOCAL) $(ACLOCAL_AMFLAGS)
+ $(am__aclocal_m4_deps):
+ 
+diff -rNU3 dist.orig/PATCHES dist.nbsd/PATCHES
+--- dist.orig/PATCHES	2013-03-13 16:37:38.000000000 +0100
++++ dist.nbsd/PATCHES	2013-12-06 20:13:14.171634202 +0100
+@@ -0,0 +1,4 @@
++texp-zero
++atan-expo-range
++rec_sqrt-carry
++asin_exprange
+diff -rNU3 dist.orig/src/Makefile.in dist.nbsd/src/Makefile.in
+--- dist.orig/src/Makefile.in	2013-03-13 16:38:21.000000000 +0100
++++ dist.nbsd/src/Makefile.in	2013-12-06 20:13:14.181634352 +0100
+@@ -921,6 +921,8 @@
+ # should not be a problem in practice, in particular because "make dist"
+ # automatically rebuilds get_patches.c before generating the archives.
+ $(srcdir)/get_patches.c: $(top_srcdir)/PATCHES $(top_srcdir)/tools/get_patches.sh
++	@echo "NOT REBUILDING $@"
++NetBSD_DISABLED_get_patches.c:
+ 	(cd $(top_srcdir) && ./tools/get_patches.sh) > $@ || rm -f $@
+ 
+ # Do not add get_patches.c to CLEANFILES so that this file doesn't
