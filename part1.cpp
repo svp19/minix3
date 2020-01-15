@@ -1,6 +1,7 @@
 #include <stdio.h> 
 #include <sys/types.h> 
-#include <unistd.h> 
+#include <unistd.h>
+#include <stdlib.h>
 
 void forkPrint(char str[], int i, int len){
     
@@ -8,7 +9,7 @@ void forkPrint(char str[], int i, int len){
         int id = fork();
         if(id > 0){ // returned to parent/caller
             printf("%c %d\n", str[i], id);
-            sleep(1);
+            sleep(rand()%4 + 1);
             forkPrint(str, i+1, len);
         }
     }
