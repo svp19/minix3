@@ -1,0 +1,9 @@
+	libexec d--755 0 0
+		ld.elf_so ---755 0 0 ld.elf_so
+	$
+	usr d--755 0 0
+		lib d--755 0 0
+			libc.so.0 ---755 0 0 libc.so.0
+			libterminfo.so.0 ---755 0 0 libterminfo.so.0
+		$
+	$

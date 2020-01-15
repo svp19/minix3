@@ -1,0 +1,15 @@
+SRCS=		mkfs.c
+BINDIR?=	/usr/sbin
+MAN?=
+
+.include <bsd.own.mk>
+.include "${.PARSEDIR}/../Makefile.inc" 
+
+.PATH:		${.CURDIR}/..
+
+CPPFLAGS+=	-I${.CURDIR}
+
+NOGCCERROR?=    yes
+NOCLANGERROR?=  yes
+
+.include <bsd.prog.mk>
