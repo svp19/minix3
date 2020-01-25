@@ -1545,6 +1545,8 @@ void enqueue(
   rdy_head = get_cpu_var(rp->p_cpu, run_q_head);
   rdy_tail = get_cpu_var(rp->p_cpu, run_q_tail);
 
+  printf("Minix 3: <pid> %d, priority: %d, isuserp: %d\n", rp->p_endpoint, rp->p_priority, isuserp(&rp));
+
   /* Now add the process to the queue. */
   if (!rdy_head[q]) {		/* add to empty queue */
       rdy_head[q] = rdy_tail[q] = rp; 		/* create a new queue */
