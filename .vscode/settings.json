@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "com.h": "c",
+        "proc.h": "c",
+        "schedproc.h": "c",
+        "assert.h": "c",
+        "resource.h": "c",
+        "random": "c"
+    }
+}
