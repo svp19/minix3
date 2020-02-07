@@ -306,7 +306,7 @@ static int schedule_process(struct schedproc * rmp, unsigned flags)
 	rmp->priority -= 1;
 	pick_cpu(rmp);
 
-	if(rmp->priority >= 7)
+	if(rmp->priority > 0)
 		printf("Minix 3: <pid> %d swapped in\n", _ENDPOINT_P(rmp->endpoint));
 
 	if (flags & SCHEDULE_CHANGE_PRIO)
