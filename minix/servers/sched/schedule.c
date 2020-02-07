@@ -11,7 +11,6 @@
 #include "schedproc.h"
 #include <assert.h>
 #include <minix/com.h>
-#include <minix/endpoint.h>
 #include <machine/archtypes.h>
 #include "kernel/proc.h" /* for queue constants */
 
@@ -100,11 +99,9 @@ int do_noquantum(message *m_ptr)
 	}
 
 	rmp = &schedproc[proc_nr_n];
-	// if (rmp->priority < MIN_USER_Q) {
-	// 	rmp->priority += 1; /* lower priority */
-	// }
-	rmp->priority = MIN_USER_Q;
-
+	if (rmp->priority < MIN_USER_Q) {
+		rmp->priority -= 1; /* lower priority */
+	}
 
 	if ((rv = schedule_process_local(rmp)) != OK) {
 		return rv;
@@ -177,8 +174,8 @@ int do_start_scheduling(message *m_ptr)
 	if (rmp->endpoint == rmp->parent) {
 		/* We have a special case here for init, which is the first
 		   process scheduled, and the parent of itself. */
-		rmp->priority   = MIN_USER_Q;
-		rmp->time_slice = 1000000;
+		rmp->priority   = USER_Q;
+		rmp->time_slice = DEFAULT_USER_TIME_SLICE;
 
 		/*
 		 * Since kernel never changes the cpu of a process, all are
@@ -307,7 +304,7 @@ static int schedule_process(struct schedproc * rmp, unsigned flags)
 
 	pick_cpu(rmp);
 
-	if(rmp->priority >= 7)
+    if(rmp->priority >= 7)
 		printf("Minix 3: <pid> %d swapped in\n", _ENDPOINT_P(rmp->endpoint));
 
 	if (flags & SCHEDULE_CHANGE_PRIO)
