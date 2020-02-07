@@ -363,7 +363,7 @@ static void balance_queues(minix_timer_t *tp)
 		if (rmp->flags & IN_USE) {
 			if (rmp->priority > rmp->max_priority) {
 				// rmp->priority += 1; /* increase priority */
-				// schedule_process_local(rmp);
+				schedule_process_local(rmp);
 				;
 			}
 		}
