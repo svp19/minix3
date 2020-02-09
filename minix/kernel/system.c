@@ -631,13 +631,14 @@ int sched_proc(struct proc *p,
 		return(EINVAL);
   
   printf("Time Quantum: %d, Time Executed: %d\n", p->p_quantum_size_ms, p->p_quantum_size_ms - cpu_time_2_ms(p->p_cpu_time_left));
-
+  printf("Minix3: Quantum = %d", quantum);
+  
 #ifdef CONFIG_SMP
 	if ((cpu < 0 && cpu != -1) || (cpu > 0 && (unsigned) cpu >= ncpus))
 		return(EINVAL);
 	if (cpu != -1 && !(cpu_is_ready(cpu)))
 		return EBADCPU;
-#endif
+#endif  
 
 	/* In some cases, we might be rescheduling a runnable process. In such
 	 * a case (i.e. if we are updating the priority) we set the NO_QUANTUM
