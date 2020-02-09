@@ -305,9 +305,10 @@ static int schedule_process(struct schedproc * rmp, unsigned flags)
 	int err;
 	int new_prio, new_quantum, new_cpu;
 
+	rmp->priority -= 1;
 	pick_cpu(rmp);
 
-	if(rmp->priority >= 7)
+	if(rmp->priority > 0)
 		printf("Minix 3: <pid> %d swapped in\n", _ENDPOINT_P(rmp->endpoint));
 
 	if (flags & SCHEDULE_CHANGE_PRIO)
@@ -363,8 +364,13 @@ static void balance_queues(minix_timer_t *tp)
 	for (proc_nr=0, rmp=schedproc; proc_nr < NR_PROCS; proc_nr++, rmp++) {
 		if (rmp->flags & IN_USE) {
 			if (rmp->priority > rmp->max_priority) {
+<<<<<<< HEAD
 				// rmp->priority -= 1; /* increase priority */
+=======
+				// rmp->priority += 1; /* increase priority */
+>>>>>>> 94ba02c83a1431a56030ce87abe59e0678f3c470
 				schedule_process_local(rmp);
+				;
 			}
 		}
 	}
