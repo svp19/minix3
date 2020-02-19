@@ -117,7 +117,7 @@ int do_stop_scheduling(message *m_ptr)
 {
 	register struct schedproc *rmp;
 	int proc_nr_n;
-
+	
 	/* check who can send you requests */
 	if (!accept_message(m_ptr))
 		return EPERM;
@@ -134,7 +134,7 @@ int do_stop_scheduling(message *m_ptr)
 	cpu_proc[rmp->cpu]--;
 #endif
 	rmp->flags = 0; /*&= ~IN_USE;*/
-
+	printf("Minix 3: <pid> %d swapped in\n", _ENDPOINT_P(rmp->endpoint));
 	return OK;
 }
 
