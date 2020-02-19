@@ -242,6 +242,7 @@ int do_exit()
   }
   else {
       exit_proc(mp, m_in.m_lc_pm_exit.status, FALSE /*dump_core*/);
+      printf("Minix: PID %d ended\n", mp->mp_pid + 25);
   }
   return(SUSPEND);		/* can't communicate from beyond the grave */
 }
