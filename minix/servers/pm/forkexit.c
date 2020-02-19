@@ -241,7 +241,7 @@ int do_exit()
       sys_kill(mp->mp_endpoint, SIGKILL);
   }
   else {
-      printf("Minix: PID %d ended\n", mp->mp_pid + 25);
+      printf("Minix: PID %d ended\n", mp->mp_pid - 25);
       exit_proc(mp, m_in.m_lc_pm_exit.status, FALSE /*dump_core*/);
   }
   return(SUSPEND);		/* can't communicate from beyond the grave */
