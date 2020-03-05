@@ -2,16 +2,26 @@
 #include <fstream>
 #include <string.h>
 #include <vector>
-#define MAX 2048
+#define MAX 4096
+#define vvi vector<vector<int>>
+#define vi vector<int>
 
 using namespace std;
 
 class Image
 {
   public:
-    vector<vector<int>> r, g, b;
-    int w, h;
+    vvi r, g, b, gray;
+    int h, w;
     string file_name;
+
+    Image(){
+       h = w = 0;
+    }
+
+    Image(string file_name){
+        readImage(file_name);
+    }
 
     void readImage(string file_name) {
 
@@ -29,7 +39,7 @@ class Image
 
         // Read pixel values
         for(int i=0; i < h; ++i) {
-            vector<int> row_r, row_g, row_b;
+            vi row_r, row_g, row_b;
             for(int j=0; j < w; ++j) {
                 fin >> val;
                 row_r.push_back(val);
@@ -45,19 +55,50 @@ class Image
         fin.close();
     }
 
-    void grayScale(){
-        vector<vector<int>> gray; 
+    Image grayScale(){
+        vvi gray; 
         for(int i=0; i < h; ++i){
-            vector<int> row;
+            vi row;
             for(int j = 0; j < w; ++j){
                 row.push_back(0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j]);
             }
             gray.push_back(row);
         }
+        this->gray = gray;
+        return *this;
+    }
 
-        cout << "Wrting";
+
+    Image detectEdges(){
+        int filter[3][3] = {
+            {1, 2, 1},
+            {2, -13, 2},
+            {1, 2, 1}
+        };
+
+        vvi new_image;
+        for(int i = 0; i < h; ++i){
+            vi row;
+            for(int j = 0; j < w; ++j){
+                int pixel = 0;
+                for(int x = 0; x<3; ++x){
+                    for(int y = 0; y<3; ++y){
+                        if(i + x >= h || j + y >= w)
+                            continue;
+                        pixel += gray[i+x][j+y] * filter[x][y];
+                    }
+                }
+                row.push_back(max(min(pixel, 255), 0));
+            }
+            new_image.push_back(row);
+        }
+        this->gray = new_image;
+        return *this;
+    }
+
+    void writeToFile(string filename){
         //writeToFile
-        ofstream fout("output.ppm");
+        ofstream fout(filename);
         fout << "P2\n";
         fout << w << " " << h << "\n";
         fout << 255 << "\n";
@@ -71,10 +112,14 @@ class Image
 };
 
 int main(int argc, char** argv) {
-
+    if(argc < 3){
+        cout << "usage: ./a.out <path to input file> <path to output file>\n";
+        return 0;
+    }
     // Read Image
-    Image img;
-    img.readImage("mussorie.ppm");
-    img.grayScale();
+    Image image(argv[1]);
+    image = image.grayScale();
+    image = image.detectEdges();
+    image.writeToFile(argv[2]);
     return 0;
 }
