@@ -3,17 +3,19 @@
 #include <string.h>
 #include <vector>
 #include <thread>
-#include <atomic>
-#include <mutex>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <semaphore.h>
+#include <fcntl.h>
 
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
+#define SNAME "/imagesem"
+
 using namespace std;
 
-atomic<int> turn{0};
-int pixels = 0;
-mutex mtx;
+sem_t *sem = sem_open(SNAME, O_CREAT, 0644, 0);
 
 class Image
 {
@@ -73,13 +75,9 @@ class Image
 
     void grayScale() {
         for(int i=0; i < h; ++i) {
-            // const lock_guard<mutex> lock(mtx);
-            // mtx.lock();
             for(int j = 0; j < w; ++j){
                 gray[i][j] = 0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j];
             }
-            // mtx.unlock();
-            pixels++;
         }
     }
 
@@ -94,10 +92,7 @@ class Image
         new_h = h - 2;
         new_w = w - 2;
 
-
         for(int i = 0; i < h; ++i){
-            while(pixels < i + 3 && pixels < h);
-            // const lock_guard<mutex> lock(mtx);
             for(int j = 0; j < w; ++j){
                 int pixel = 0;
                 for(int x = 0; x<3; ++x){
@@ -110,7 +105,7 @@ class Image
                 edges[i][j] = max(min(pixel, 255), 0);
             }
         }
-        // while(pixels != h);
+
         writeToFile(file_name);
     }
 
@@ -140,16 +135,12 @@ int main(int argc, char** argv) {
     image.file_name = argv[2];
     
     // Transform
-    // cout<< "main(): creating gray thread\n";
     thread gray_thread( &Image::grayScale, &image );
 
-    // cout<< "main(): creating edge thread\n";
     thread edge_thread( &Image::detectEdges, &image );
 
     gray_thread.join();
     edge_thread.join();
 
-    // Write output
-    // image.writeToFile(argv[2]);
     return 0;
 }
