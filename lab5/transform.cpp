@@ -2,11 +2,16 @@
 #include <fstream>
 #include <string.h>
 #include <vector>
+#include <pthread.h>
+#include <atomic>
+
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
 
 using namespace std;
+
+atomic<int> pixels{0};
 
 class Image
 {
@@ -20,12 +25,12 @@ class Image
     }
 
     Image(string file_name){
+        this->file_name = file_name;
         readImage(file_name);
     }
 
     void readImage(string file_name) {
 
-        this->file_name = file_name;
         // Get file pointer
         ifstream fin(file_name);
         string first_line;
@@ -118,8 +123,12 @@ int main(int argc, char** argv) {
     }
     // Read Image
     Image image(argv[1]);
+    
+    // Transform
     image = image.grayScale();
     image = image.detectEdges();
+
+    // Write output
     image.writeToFile(argv[2]);
     return 0;
 }
