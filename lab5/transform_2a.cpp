@@ -11,13 +11,19 @@
 #define vi vector<int>
 using namespace std;
 
-atomic<int> pixels{0};
+// atomic<int> pixels{0};
+atomic<int> turn{0};
+int pixels = 0;
 mutex mtx;
 
 class Image
 {
   public:
-    vvi r, g, b, gray, edges;
+    int** gray;
+    int ** r;
+    int ** g;
+    int ** b;
+    int ** edges;
     int h, w, new_h, new_w;
     string file_name;
 
@@ -43,34 +49,37 @@ class Image
         fin >> this->h;
         fin >> val;
 
+        // Dynamically allocate all 2D Arrays
+        gray = new int*[h];
+        edges = new int*[h];
+        r = new int*[h];
+        g = new int*[h];
+        b = new int*[h];
+        for(int i=0; i<h; ++i){
+            gray[i] = new int[w];
+            edges[i] = new int[w];
+            r[i] = new int[w];
+            g[i] = new int[w];
+            b[i] = new int[w];
+        }
+
         // Read pixel values
         for(int i=0; i < h; ++i) {
-            vi row_r, row_g, row_b;
             for(int j=0; j < w; ++j) {
-                fin >> val;
-                row_r.push_back(val);
-                fin >> val;
-                row_g.push_back(val);
-                fin >> val;
-                row_b.push_back(val);
+                fin >> r[i][j] >> g[i][j] >> b[i][j];
             }
-            r.push_back(row_r);
-            g.push_back(row_g);
-            b.push_back(row_b);
         }
         fin.close();
     }
 
     void grayScale() {
         for(int i=0; i < h; ++i) {
-            vi row;
             // const lock_guard<mutex> lock(mtx);
-            mtx.lock();
+            // mtx.lock();
             for(int j = 0; j < w; ++j){
-                row.push_back(0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j]);
+                gray[i][j] = 0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j];
             }
-            gray.push_back(row);
-            mtx.unlock();
+            // mtx.unlock();
             pixels++;
         }
     }
@@ -89,8 +98,7 @@ class Image
 
         for(int i = 0; i < h; ++i){
             while(pixels < i + 3 && pixels < h);
-            vi row;
-            const lock_guard<mutex> lock(mtx);
+            // const lock_guard<mutex> lock(mtx);
             for(int j = 0; j < w; ++j){
                 int pixel = 0;
                 for(int x = 0; x<3; ++x){
@@ -100,9 +108,8 @@ class Image
                         pixel += gray[i+x][j+y] * filter[x][y];
                     }
                 }
-                row.push_back(max(min(pixel, 255), 0));
+                edges[i][j] = max(min(pixel, 255), 0);
             }
-            edges.push_back(row);
         }
         // while(pixels != h);
         writeToFile(file_name);
