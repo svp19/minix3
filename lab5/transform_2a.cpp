@@ -11,9 +11,8 @@
 #define vi vector<int>
 using namespace std;
 
-// atomic<int> pixels{0};
-atomic<int> turn{0};
-int pixels = 0;
+atomic<int> pixels{0};
+// int pixels = 0;
 mutex mtx;
 
 class Image
