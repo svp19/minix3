@@ -10,8 +10,8 @@
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
-#define SNAME_READ "/readimage14"
-#define SNAME_WRITE "/writeimage14"
+#define SNAME_READ "/readimage16"
+#define SNAME_WRITE "/writeimage16"
 
 using namespace std;
 
