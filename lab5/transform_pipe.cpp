@@ -158,18 +158,14 @@ class Image
                 if(row >= 2 && row < h){
                     processRow(row - 2);
                 }
-                cout << "Row: " << row << "\n";
                 row++;
                 if(row >= h)
                     break;
             }
 
             // Process remaining rows
-            cout << "Done";            
             processRow(h - 2);
             processRow(h - 1);
-            cout << "Done";
-
             writeToFile(file_name);
         } 
     }
