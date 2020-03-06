@@ -96,8 +96,8 @@ class Image
             // sem_wait(read_sem);
             for(int j = 0; j < w; ++j){
                 string row = "";
-                row += (char) (0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j] + 128);
-                strcpy(pixel + j*h + j, row.c_str());
+                row += (char) (( (int) (0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j])) + 128);
+                strcpy(pixel + i*w + j, row.c_str());
                 // cout<< 0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j]<< "\n";
             }
 
@@ -122,6 +122,7 @@ int main(int argc, char** argv) {
 
     // Read Image
     Image image(argv[1]);
+    image.file_name = argv[2];
     image.sendDimensions();
     
     // Transform

@@ -96,7 +96,7 @@ class Image
 
             for(int j=0; j < w; ++j){
                 // cout << ( (int) (*(pixel + j*h + j))) + 128 << "\n";
-                gray[i][j] = ( (int) (*(pixel + j*h + j)) ) + 128;
+                gray[i][j] = ( (int) (*(pixel + i*w + j)) ) + 128;
             }
 
             // if(complete_rows < (h - 2) && (i - complete_rows) >= 3) {
@@ -126,9 +126,13 @@ class Image
             {1, 2, 1},
             {2, -13, 2},
             {1, 2, 1}
-        };        
+        };
+
+        fout << "P2\n";
+        fout << w << " " << h << "\n";
+        fout << 255 << "\n";
+
         for(int i = 0; i < h; ++i){
-            if(i < h - 4)
             for(int j = 0; j < w; ++j){
                 int pixel = 0;
                 for(int x = 0; x<3; ++x){
@@ -142,14 +146,12 @@ class Image
             }
         }
 
-        fout << "P2\n";
-        fout << w << " " << h << "\n";
-        fout << 255 << "\n";
         for(int i=0; i < h; ++i){
             for(int j = 0; j < w; ++j){
                 fout << edges[i][j] << "\n";
             }
         }
+
         fout.close();
     }
 };
