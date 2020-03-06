@@ -11,8 +11,8 @@
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
-#define SNAME_READ "/readimage"
-#define SNAME_WRITE "/writeimage"
+#define SNAME_READ "/readimage8"
+#define SNAME_WRITE "/writeimage8"
 
 using namespace std;
 
@@ -39,6 +39,23 @@ class Image
         }
     }
 
+    void getDimensions() {
+        key_t my_key = ftok("shmfile", 65);
+        int shmid = shmget(my_key, sizeof(char), 0666|IPC_CREAT);
+        char *pixel = (char *) shmat(shmid,(void*)0,0);
+
+        sem_wait(write_sem);
+        h = atoi(pixel);
+        sem_post(read_sem);
+
+        sem_wait(write_sem);
+        w = atoi(pixel);
+        sem_post(read_sem);
+
+        shmdt(pixel);
+        shmctl(shmid,IPC_RMID,NULL);
+    }
+
     void detectEdges() {
         int filter[3][3] = {
             {1, 2, 1},
@@ -46,16 +63,20 @@ class Image
             {1, 2, 1}
         };
 
-        key_t my_key = ftok("shmfile", 65); // ftok function is used to generate unique key
-        int shmid = shmget(my_key, sizeof(int), 0666|IPC_CREAT); // shmget returns an ide in shmid
-        int *pixel = (int*) shmat(shmid,(void*)0,0); // shmat to join to shared memory
+        key_t my_key = ftok("shmfile_image", 65); // ftok function is used to generate unique key
+        int shmid = shmget(my_key, sizeof(w * sizeof(char)), 0666|IPC_CREAT); // shmget returns an ide in shmid
+
+        char *pixel = (char *) shmat(shmid,(void*)0,0); // shmat to join to shared memory
         
-        for(int i=0; i<10; ++i){
-            for(int j=0; j < 10; ++j){
-                sem_wait(write_sem);
-                cout << *pixel << "\n";
-                sem_post(read_sem);
+        for(int i=0; i<h; ++i){
+            sem_wait(write_sem);
+
+            for(int j=0; j < w; ++j){
+                // cout << ( (int) (*(pixel + j))) + 128 << "\n";
+                edges[i][j] = ( (int) (*(pixel + j)) ) + 128;
             }
+
+            sem_post(read_sem);
         }
         shmdt(pixel);
         shmctl(shmid,IPC_RMID,NULL); // destroy the shared memory
@@ -77,7 +98,7 @@ class Image
         //     }
         // }
 
-        // writeToFile(file_name);
+        writeToFile(file_name);
     }
 
     void writeToFile(string filename){
@@ -108,10 +129,16 @@ int main(int argc, char** argv) {
     Image image;
 
     // Get file name
-    image.file_name = argv[1];
+    image.file_name = argv[2];
+    image.getDimensions();
+    image.allocateMatrix();
     
     // Transform
     image.detectEdges();
+    cout<< "Image width: " << image.w << " and Image height: " << image.h << endl;
+
+    sem_destroy(write_sem);
+    sem_destroy(read_sem);
 
     return 0;
 }
