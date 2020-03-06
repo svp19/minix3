@@ -69,15 +69,14 @@ class Image
             {2, -13, 2},
             {1, 2, 1}
         };
-        cout<< "Row: " << row << "\n"; 
-        int pixel = 0;
-        
+
         for(int j=0; j < w; ++j) {
+            int pixel = 0;
             for(int x = 0; x<3; ++x){
                 for(int y = 0; y<3; ++y){
                     if(row + x >= h || j + y >= w)
                         continue;
-                    // pixel += gray[row+x][j+y] * filter[x][y];
+                    pixel += gray[row+x][j+y] * filter[x][y];
                 }
             }
             edges[row][j] = max(min(pixel, 255), 0);
@@ -85,6 +84,12 @@ class Image
     }
 
     void detectEdges() {
+
+        int filter[3][3] = {
+            {1, 2, 1},
+            {2, -13, 2},
+            {1, 2, 1}
+        };
 
         key_t my_key = ftok("shmfile_image", 65); // ftok function is used to generate unique key
         int shmid = shmget(my_key, w * h * sizeof(char) + 1, 0666|IPC_CREAT); // shmget returns an ide in shmid
@@ -95,26 +100,21 @@ class Image
             sem_wait(write_sem);
 
             for(int j=0; j < w; ++j){
-                // cout << ( (int) (*(pixel + j*h + j))) + 128 << "\n";
                 gray[i][j] = ( (int) (*(pixel + i*w + j)) ) + 128;
             }
 
-            // if(complete_rows < (h - 2) && (i - complete_rows) >= 3) {
-            //     processRows(i);
-            // }
-
-
-            // if(i >= 4 && i < h-4){
-                
-            // }
-
-            // if(i >= h-3){
-            //     processRow(i);
-            // }
-            // sem_post(read_sem);
+            if(i >= 2 && i < h){
+                processRow(i - 2);
+            }
         }
+
+        // Process remaining rows
+        processRow(h - 2);
+        processRow(h - 1);
+
+        // Destroy the shared memory
         shmdt(pixel);
-        shmctl(shmid,IPC_RMID,NULL); // destroy the shared memory
+        shmctl(shmid,IPC_RMID,NULL);
 
         writeToFile(file_name);
     }
@@ -131,20 +131,6 @@ class Image
         fout << "P2\n";
         fout << w << " " << h << "\n";
         fout << 255 << "\n";
-
-        for(int i = 0; i < h; ++i){
-            for(int j = 0; j < w; ++j){
-                int pixel = 0;
-                for(int x = 0; x<3; ++x){
-                    for(int y = 0; y<3; ++y){
-                        if(i + x >= h || j + y >= w)
-                            continue;
-                        pixel += gray[i+x][j+y] * filter[x][y];
-                    }
-                }
-                edges[i][j] = max(min(pixel, 255), 0);
-            }
-        }
 
         for(int i=0; i < h; ++i){
             for(int j = 0; j < w; ++j){
