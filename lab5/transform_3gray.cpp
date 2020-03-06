@@ -10,8 +10,8 @@
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
-#define SNAME_READ "/readimage8"
-#define SNAME_WRITE "/writeimage8"
+#define SNAME_READ "/readimage10"
+#define SNAME_WRITE "/writeimage10"
 
 using namespace std;
 
@@ -89,19 +89,18 @@ class Image
     // Add 128 to the casted int from a char ((int) x) + 128
     void grayScale() {
         key_t my_key = ftok("shmfile_image", 65); // ftok function is used to generate unique key
-        int shmid = shmget(my_key, sizeof(w * sizeof(char)), 0666|IPC_CREAT); // shmget returns an ide in shmid
+        int shmid = shmget(my_key, w * h * sizeof(char) + 1, 0666|IPC_CREAT); // shmget returns an ide in shmid
         char *pixel = (char *) shmat(shmid,(void*)0,0); // shmat to join to shared memory
 
         for(int i=0; i < h; ++i) {
-            string row = "";
-            sem_wait(read_sem);
-
+            // sem_wait(read_sem);
             for(int j = 0; j < w; ++j){
+                string row = "";
                 row += (char) (0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j] + 128);
-                // cout<< 0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j]<< "\t";
+                strcpy(pixel + j*h + j, row.c_str());
+                // cout<< 0.3*r[i][j] + 0.59*g[i][j] + 0.11*b[i][j]<< "\n";
             }
 
-            strcpy(pixel, row.c_str());
             // cout<< endl << row << " " << row.size() <<endl;
             sem_post(write_sem);
         }

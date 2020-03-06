@@ -2,6 +2,8 @@
     "files.associations": {
         "string": "cpp",
         "string_view": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "ostream": "cpp",
+        "*.tcc": "cpp"
     }
 }

@@ -11,8 +11,8 @@
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
-#define SNAME_READ "/readimage8"
-#define SNAME_WRITE "/writeimage8"
+#define SNAME_READ "/readimage10"
+#define SNAME_WRITE "/writeimage10"
 
 using namespace std;
 
@@ -64,7 +64,7 @@ class Image
         };
 
         key_t my_key = ftok("shmfile_image", 65); // ftok function is used to generate unique key
-        int shmid = shmget(my_key, sizeof(w * sizeof(char)), 0666|IPC_CREAT); // shmget returns an ide in shmid
+        int shmid = shmget(my_key, w * h * sizeof(char) + 1, 0666|IPC_CREAT); // shmget returns an ide in shmid
 
         char *pixel = (char *) shmat(shmid,(void*)0,0); // shmat to join to shared memory
         
@@ -72,11 +72,11 @@ class Image
             sem_wait(write_sem);
 
             for(int j=0; j < w; ++j){
-                // cout << ( (int) (*(pixel + j))) + 128 << "\n";
-                edges[i][j] = ( (int) (*(pixel + j)) ) + 128;
+                // cout << ( (int) (*(pixel + j*h + j))) + 128 << "\n";
+                edges[i][j] = ( (int) (*(pixel + j*h + j)) ) + 128;
             }
 
-            sem_post(read_sem);
+            // sem_post(read_sem);
         }
         shmdt(pixel);
         shmctl(shmid,IPC_RMID,NULL); // destroy the shared memory
