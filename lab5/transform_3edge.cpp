@@ -11,8 +11,8 @@
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
-#define SNAME_READ "/readimage10"
-#define SNAME_WRITE "/writeimage10"
+#define SNAME_READ "/readimage14"
+#define SNAME_WRITE "/writeimage14"
 
 using namespace std;
 
@@ -24,7 +24,8 @@ class Image
 {
   public:
     int ** edges;
-    int h, w;
+    int ** gray;
+    int h, w, complete_rows;
     string file_name;
 
     Image(){
@@ -34,9 +35,14 @@ class Image
     void allocateMatrix() {
         // Dynamically allocate the 2D Array
         edges = new int*[h];
+        gray = new int*[h];
         for(int i=0; i<h; ++i){
             edges[i] = new int[w];
+            gray[i] = new int[w];
         }
+
+        // Init completed rows
+        complete_rows = 0;
     }
 
     void getDimensions() {
@@ -56,12 +62,29 @@ class Image
         shmctl(shmid,IPC_RMID,NULL);
     }
 
-    void detectEdges() {
+    void processRow(int row) {
+
         int filter[3][3] = {
             {1, 2, 1},
             {2, -13, 2},
             {1, 2, 1}
         };
+        cout<< "Row: " << row << "\n"; 
+        int pixel = 0;
+        
+        for(int j=0; j < w; ++j) {
+            for(int x = 0; x<3; ++x){
+                for(int y = 0; y<3; ++y){
+                    if(row + x >= h || j + y >= w)
+                        continue;
+                    // pixel += gray[row+x][j+y] * filter[x][y];
+                }
+            }
+            edges[row][j] = max(min(pixel, 255), 0);
+        }
+    }
+
+    void detectEdges() {
 
         key_t my_key = ftok("shmfile_image", 65); // ftok function is used to generate unique key
         int shmid = shmget(my_key, w * h * sizeof(char) + 1, 0666|IPC_CREAT); // shmget returns an ide in shmid
@@ -73,30 +96,25 @@ class Image
 
             for(int j=0; j < w; ++j){
                 // cout << ( (int) (*(pixel + j*h + j))) + 128 << "\n";
-                edges[i][j] = ( (int) (*(pixel + j*h + j)) ) + 128;
+                gray[i][j] = ( (int) (*(pixel + j*h + j)) ) + 128;
             }
 
+            // if(complete_rows < (h - 2) && (i - complete_rows) >= 3) {
+            //     processRows(i);
+            // }
+
+
+            // if(i >= 4 && i < h-4){
+                
+            // }
+
+            // if(i >= h-3){
+            //     processRow(i);
+            // }
             // sem_post(read_sem);
         }
         shmdt(pixel);
         shmctl(shmid,IPC_RMID,NULL); // destroy the shared memory
-
-        // new_h = h - 2;
-        // new_w = w - 2;
-
-        // for(int i = 0; i < h; ++i){
-        //     for(int j = 0; j < w; ++j){
-        //         int pixel = 0;
-        //         for(int x = 0; x<3; ++x){
-        //             for(int y = 0; y<3; ++y){
-        //                 if(i + x >= h || j + y >= w)
-        //                     continue;
-        //                 pixel += gray[i+x][j+y] * filter[x][y];
-        //             }
-        //         }
-        //         edges[i][j] = max(min(pixel, 255), 0);
-        //     }
-        // }
 
         writeToFile(file_name);
     }
@@ -104,6 +122,25 @@ class Image
     void writeToFile(string filename){
         //writeToFile
         ofstream fout(filename);
+        int filter[3][3] = {
+            {1, 2, 1},
+            {2, -13, 2},
+            {1, 2, 1}
+        };        
+        for(int i = 0; i < h; ++i){
+            if(i < h - 4)
+            for(int j = 0; j < w; ++j){
+                int pixel = 0;
+                for(int x = 0; x<3; ++x){
+                    for(int y = 0; y<3; ++y){
+                        if(i + x >= h || j + y >= w)
+                            continue;
+                        pixel += gray[i+x][j+y] * filter[x][y];
+                    }
+                }
+                edges[i][j] = max(min(pixel, 255), 0);
+            }
+        }
 
         fout << "P2\n";
         fout << w << " " << h << "\n";
