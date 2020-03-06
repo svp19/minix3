@@ -11,8 +11,8 @@
 #define MAX 4096
 #define vvi vector<vector<int>>
 #define vi vector<int>
-#define SNAME_READ "/readimage14"
-#define SNAME_WRITE "/writeimage14"
+#define SNAME_READ "/readimage16"
+#define SNAME_WRITE "/writeimage16"
 
 using namespace std;
 
@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
     
     // Transform
     image.detectEdges();
-    cout<< "Image width: " << image.w << " and Image height: " << image.h << endl;
+    // cout<< "Image width: " << image.w << " and Image height: " << image.h << endl;
 
     sem_destroy(write_sem);
     sem_destroy(read_sem);
