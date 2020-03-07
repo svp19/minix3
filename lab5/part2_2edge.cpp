@@ -92,15 +92,15 @@ class Image
         };
 
         key_t my_key = ftok("shmfile_image", 65); // ftok function is used to generate unique key
-        int shmid = shmget(my_key, w * h * sizeof(char) + 1, 0666|IPC_CREAT); // shmget returns an ide in shmid
+        int shmid = shmget(my_key, w * h * sizeof(int) + 1, 0666|IPC_CREAT); // shmget returns an ide in shmid
 
-        char *pixel = (char *) shmat(shmid,(void*)0,0); // shmat to join to shared memory
+        int *pixel = (int *) shmat(shmid,(void*)0,0); // shmat to join to shared memory
         
         for(int i=0; i<h; ++i){
             sem_wait(write_sem);
 
             for(int j=0; j < w; ++j){
-                gray[i][j] = ( (int) (*(pixel + i*w + j)) ) + 128;
+                gray[i][j] = *(pixel + i*w + j);
             }
 
             if(i >= 2 && i < h){
