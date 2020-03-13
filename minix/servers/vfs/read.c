@@ -23,7 +23,7 @@
 #include "scratchpad.h"
 #include "vnode.h"
 #include "vmnt.h"
-
+#include <string.h>
 
 /*===========================================================================*
  *				do_read					     *
@@ -247,6 +247,16 @@ int read_write(struct fproc *rfp, int rw_flag, struct filp *f,
   }
 
   f->filp_pos = position;
+
+	struct vmnt *vmp;
+	vmp = find_vmnt(vp->v_fs_e);	
+	if (rw_flag == WRITING && strcmp(vmp->m_mount_path, "/home") == 0) {
+		printf("<minix3> file write: %llu; nbytes = %zu; offset = %llu\n", vp->v_inode_nr, size, position);
+	}
+
+	if (rw_flag == READING && strcmp(vmp->m_mount_path, "/home") == 0) {
+		printf("<minix3> file read: %llu; nbytes = %zu; offset = %llu\n", vp->v_inode_nr, size, position);
+	}
 
   if (r == EPIPE && rw_flag == WRITING) {
 	/* Process is writing, but there is no reader. Tell the kernel to

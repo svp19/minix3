@@ -26,6 +26,7 @@
 #include "vnode.h"
 #include "vmnt.h"
 #include "path.h"
+#include <string.h>
 
 static char mode_map[] = {R_BIT, W_BIT, R_BIT|W_BIT, 0};
 
@@ -111,7 +112,16 @@ int common_open(char path[PATH_MAX], int oflags, mode_t omode)
         omode = I_REGULAR | (omode & ALLPERMS & fp->fp_umask);
 	vp = new_node(&resolve, oflags, omode);
 	r = err_code;
-	if (r == OK) exist = FALSE;	/* We just created the file */
+
+	// Create File
+	struct vmnt *v_mp;
+	if (r == OK) {
+		exist = FALSE;	/* We just created the file */
+		v_mp = find_vmnt(vp->v_fs_e);	
+		if(strcmp(v_mp->m_mount_path, "/home") == 0) {
+			printf("<minix3> file created: %llu\n", vp->v_inode_nr);
+		}
+	}
 	else if (r != EEXIST) {		/* other error */
 		if (vp) unlock_vnode(vp);
 		unlock_filp(filp);
