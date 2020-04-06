@@ -23,6 +23,7 @@
 #include "scratchpad.h"
 #include "vnode.h"
 #include "vmnt.h"
+#include <string.h>
 
 
 /*===========================================================================*
