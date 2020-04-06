@@ -89,5 +89,3 @@ void free_zone(
   free_bit(sp, ZMAP, bit);
   if (bit < sp->s_zsearch) sp->s_zsearch = bit;
 }
-
-

@@ -46,6 +46,11 @@ int op;				/* special actions */
   long excess, zone;
   struct buf *bp_dindir = NULL, *bp = NULL;
 
+  if((rip->i_mode & I_TYPE ) == I_IMMEDIATE) {
+	  printf("<minix3>: Immediate File");
+	  return(NO_BLOCK);
+  }
+
   IN_MARKDIRTY(rip);
   scale = rip->i_sp->s_log_zone_size;		/* for zone-block conversion */
   	/* relative zone # to insert */

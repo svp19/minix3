@@ -26,6 +26,7 @@
 #include "vnode.h"
 #include "vmnt.h"
 #include "path.h"
+#define S_IFIMM (0110000 & S_IFMT)
 
 static char mode_map[] = {R_BIT, W_BIT, R_BIT|W_BIT, 0};
 
@@ -108,10 +109,18 @@ int common_open(char path[PATH_MAX], int oflags, mode_t omode)
 
   /* If O_CREATE is set, try to make the file. */
   if (oflags & O_CREAT) {
-        omode = I_REGULAR | (omode & ALLPERMS & fp->fp_umask);
+        omode = I_IMMEDIATE | (omode & ALLPERMS & fp->fp_umask);
 	vp = new_node(&resolve, oflags, omode);
 	r = err_code;
-	if (r == OK) exist = FALSE;	/* We just created the file */
+
+	struct vmnt *v_mp;
+	if (r == OK) {
+		exist = FALSE;	/* We just created the file */
+		v_mp = find_vmnt(vp->v_fs_e);	
+		if(strcmp(v_mp->m_mount_path, "/home") == 0) {
+			printf("<minix3> file created: %llu\n", vp->v_inode_nr);
+		}
+	}
 	else if (r != EEXIST) {		/* other error */
 		if (vp) unlock_vnode(vp);
 		unlock_filp(filp);
@@ -146,6 +155,7 @@ int common_open(char path[PATH_MAX], int oflags, mode_t omode)
 		/* Opening reg. files, directories, and special files differ */
 		switch (vp->v_mode & S_IFMT) {
 		   case S_IFREG:
+		   case S_IFIMM:
 			/* Truncate regular file if O_TRUNC. */
 			if (oflags & O_TRUNC) {
 				if ((r = forbidden(fp, vp, W_BIT)) != OK)
