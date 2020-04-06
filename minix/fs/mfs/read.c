@@ -150,7 +150,7 @@ int fs_readwrite(void)
       IN_MARKDIRTY(rip);
       if(r==OK) {
         cum_io += nrbytes;
-        position == (off_t)nrbytes;
+        position += (off_t)nrbytes;
         nrbytes = 0;
       }
     }
@@ -219,7 +219,7 @@ register struct inode *rip; /*inode to be erased */
   register int i;
   rip->i_size=0;
   rip->i_update = ATIME | CTIME | MTIME; 
-  INMARKDIRTY(rip);
+  IN_MARKDIRTY(rip);
   for(i=0; i<V2_NR_TZONES; ++i)
     rip->i_zone[i] = NO_ZONE;
 }
