@@ -47,7 +47,7 @@ int op;				/* special actions */
   struct buf *bp_dindir = NULL, *bp = NULL;
 
   if((rip->i_mode & I_TYPE ) == I_IMMEDIATE) {
-	  printf("<minix3>: Immediate File");
+	//   printf("<minix3>: Immediate File");
 	  return(NO_BLOCK);
   }
 

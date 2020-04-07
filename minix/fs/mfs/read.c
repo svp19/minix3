@@ -92,9 +92,9 @@ int fs_readwrite(void)
   cum_io = 0;
 
   if(mode_word==I_IMMEDIATE) {
-    printf("<minix3>: inImmediate\n");
+    // printf("<minix3>: inImmediate\n");
     if(rw_flag==WRITING) {
-      printf("<minix3>: inImmediateWrite\n");
+      // printf("<minix3>: inImmediateWrite\n");
       if(position + nrbytes > 32) {
         int i;
         int post=0;
@@ -124,7 +124,7 @@ int fs_readwrite(void)
       } 
     }
     else {// READ IMMEDIATE
-      printf("<minix3>: inImmediateRead\n");
+      // printf("<minix3>: inImmediateRead\n");
       if(position >= f_size)
         immediate=0;
       else
