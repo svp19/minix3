@@ -136,6 +136,23 @@ int fs_readwrite(void)
     if(rw_flag==READING) {
       printf("<minix3>: Reading from immediate file\n");
       r = sys_safecopyto(VFS_PROC_NR, gid, (vir_bytes)cum_io,(vir_bytes) rip->i_zone,(size_t) f_size);
+      
+      int i;
+      int post=0;
+      char* temp_bytes;
+      char buffer[40];// Max 40 bytes as 10 u32 i_zones present
+      for(i=0; i<f_size; ++i) {// Copy file data in i_zones to buffer.
+        if(i%4 == 0)
+          temp_bytes = (char*)rip->i_zone + i;
+        buffer[i] = temp_bytes[i%4];
+      }
+
+      printf("<minix3> Immediate File contents:\n");
+      for(i=0; i<f_size; ++i) {
+        printf(buffer[i]);
+      }
+      printf("<minix3> EOF Immediate File\n");
+      
       if(r==OK) {
         nrbytes=0;
         cum_io += f_size;
