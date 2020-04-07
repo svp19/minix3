@@ -149,7 +149,7 @@ int fs_readwrite(void)
 
       printf("<minix3> Immediate File contents:\n");
       for(i=0; i<f_size; ++i) {
-        printf(buffer[i]);
+        printf("%c", buffer[i]);
       }
       printf("<minix3> EOF Immediate File\n");
       
