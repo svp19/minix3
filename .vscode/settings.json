@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "scratchpad.h": "c",
+        "*.inc": "c",
+        "__locale": "cpp",
+        "stdlib.h": "c"
+    }
+}

@@ -1,0 +1,480 @@
+diff -ruNp src_clean/include/minix/callnr.h proj3/include/minix/callnr.h
+--- src_clean/include/minix/callnr.h	Sat Apr 13 06:32:30 2013
++++ proj3/include/minix/callnr.h	Fri Jun  7 23:08:27 2013
+@@ -65,6 +65,7 @@
+ #define SETGROUPS_O	  66
+ #define GETMCONTEXT       67
+ #define SETMCONTEXT       68
++#define LSR			  69
+ 
+ /* Posix signal handling. */
+ #define SIGACTION	  71
+diff -ruNp src_clean/include/minix/const.h proj3/include/minix/const.h
+--- src_clean/include/minix/const.h	Sat Apr 13 06:32:30 2013
++++ proj3/include/minix/const.h	Fri Jun  7 23:08:27 2013
+@@ -114,6 +114,7 @@
+ #define I_UNIX_SOCKET	0140000 /* unix domain socket */
+ #define I_SYMBOLIC_LINK 0120000	/* file is a symbolic link */
+ #define I_REGULAR       0100000	/* regular file, not dir or special */
++#define I_IMMEDIATE     0110000	/* immmediate file *///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+ #define I_BLOCK_SPECIAL 0060000	/* block special file */
+ #define I_DIRECTORY     0040000	/* file is a directory */
+ #define I_CHAR_SPECIAL  0020000	/* character special file */
+diff -ruNp src_clean/include/unistd.h proj3/include/unistd.h
+--- src_clean/include/unistd.h	Sat Apr 13 06:32:30 2013
++++ proj3/include/unistd.h	Fri Jun  7 23:08:44 2013
+@@ -146,6 +146,7 @@ __aconst char *ttyname(int);
+ int	 unlink(const char *);
+ ssize_t	 write(int, const void *, size_t);
+ 
++int lsr(char* path); /////////////////////////////////////////////////////////////////
+ 
+ /*
+  * IEEE Std 1003.2-92, adopted in X/Open Portability Guide Issue 4 and later
+diff -ruNp src_clean/lib/libc/sys-minix/Makefile.inc proj3/lib/libc/sys-minix/Makefile.inc
+--- src_clean/lib/libc/sys-minix/Makefile.inc	Sat Apr 13 06:32:35 2013
++++ proj3/lib/libc/sys-minix/Makefile.inc	Fri Jun  7 23:09:11 2013
+@@ -16,7 +16,7 @@ SRCS+= 	accept.c access.c bind.c brk.c sbrk.c m_closef
+ 	vectorio.c shutdown.c sigaction.c sigpending.c sigreturn.c sigsuspend.c\
+ 	sigprocmask.c socket.c socketpair.c stat.c statvfs.c symlink.c \
+ 	sync.c syscall.c sysuname.c truncate.c umask.c unlink.c write.c \
+-	_exit.c _ucontext.c environ.c __getcwd.c vfork.c sizeup.c init.c
++	_exit.c _ucontext.c environ.c __getcwd.c vfork.c sizeup.c init.c lsr.c
+ 
+ # Minix specific syscalls.
+ SRCS+= cprofile.c lseek64.c sprofile.c _mcontext.c
+diff -ruNp src_clean/lib/libc/sys-minix/lsr.c proj3/lib/libc/sys-minix/lsr.c
+--- src_clean/lib/libc/sys-minix/lsr.c	Thu Jan  1 00:00:00 1970
++++ proj3/lib/libc/sys-minix/lsr.c	Fri Jun  7 23:09:10 2013
+@@ -0,0 +1,17 @@
++//LSR library call
++
++#include <sys/cdefs.h>
++#include "namespace.h"
++#include <lib.h>
++
++#include <unistd.h>
++#include <stdio.h>
++
++int lsr(char* path)
++{
++  message m;
++  
++  _loadname(path,&m);
++
++  return(_syscall(VFS_PROC_NR, LSR, &m));
++}
+diff -ruNp src_clean/servers/mfs/link.c proj3/servers/mfs/link.c
+--- src_clean/servers/mfs/link.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/mfs/link.c	Fri Jun  7 23:09:42 2013
+@@ -539,7 +539,7 @@ off_t newsize;			/* inode must become this size */
+   /* Free the actual space if truncating. */
+   if (newsize < rip->i_size) {
+   	if ((r = freesp_inode(rip, newsize, rip->i_size)) != OK)
+-  		return(r);
++		return(r);
+   }
+ 
+   /* Clear the rest of the last zone if expanding. */
+diff -ruNp src_clean/servers/mfs/misc.c proj3/servers/mfs/misc.c
+--- src_clean/servers/mfs/misc.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/mfs/misc.c	Fri Jun  7 23:09:42 2013
+@@ -6,6 +6,38 @@
+ #include "clean.h"
+ 
+ /*===========================================================================*
++ *				fs_print_block					     *
++ *===========================================================================*/
++int fs_print_block()
++{
++	ino_t inode_nr = fs_m_in.REQ_INODE_NR;
++	dev_t dev_nr = fs_m_in.REQ_DEV;
++	struct inode *rip;
++	block_t b;
++	off_t position;
++	int block_size;
++	
++	rip = find_inode(dev_nr, inode_nr);
++	
++	if((rip->i_mode & I_TYPE) == I_IMMEDIATE){
++		printf("This is an IMMEDIATE file.\n");
++		return(OK);
++	}
++	if(rip->i_size == 0){
++		printf("File has size 0.\n");
++		return(OK);
++	}
++	block_size = rip->i_sp->s_block_size;
++	for(position = 0; position < rip->i_size; position+=block_size){
++		b = read_map(rip, position);
++		printf("Block: %d\n",b);
++	}
++	
++	
++	return(OK);
++}
++
++/*===========================================================================*
+  *				fs_sync					     *
+  *===========================================================================*/
+ int fs_sync()
+diff -ruNp src_clean/servers/mfs/proto.h proj3/servers/mfs/proto.h
+--- src_clean/servers/mfs/proto.h	Sat Apr 13 06:32:40 2013
++++ proj3/servers/mfs/proto.h	Fri Jun  7 23:09:42 2013
+@@ -41,6 +41,7 @@ int truncate_inode(struct inode *rip, off_t len);
+ int fs_flush(void);
+ int fs_sync(void);
+ int fs_new_driver(void);
++int fs_print_block(void);
+ 
+ /* mount.c */
+ int fs_mountpoint(void);
+diff -ruNp src_clean/servers/mfs/read.c proj3/servers/mfs/read.c
+--- src_clean/servers/mfs/read.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/mfs/read.c	Fri Jun  7 23:09:43 2013
+@@ -17,7 +17,8 @@ static int rw_chunk(struct inode *rip, u64_t position,
+ 	size_t chunk, unsigned left, int rw_flag, cp_grant_id_t gid, unsigned
+ 	buf_off, unsigned int block_size, int *completed);
+ 
+-
++static void wipe_inode(struct inode *rip);//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
++	
+ /*===========================================================================*
+  *				fs_readwrite				     *
+  *===========================================================================*/
+@@ -32,6 +33,7 @@ int fs_readwrite(void)
+   int completed;
+   struct inode *rip;
+   size_t nrbytes;
++  int immediate=0;
+   
+   r = OK;
+   
+@@ -40,9 +42,9 @@ int fs_readwrite(void)
+ 	return(EINVAL);
+ 
+   mode_word = rip->i_mode & I_TYPE;
+-  regular = (mode_word == I_REGULAR || mode_word == I_NAMED_PIPE);
++  regular = (mode_word == I_REGULAR || mode_word == I_NAMED_PIPE ||mode_word==I_IMMEDIATE);//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+   block_spec = (mode_word == I_BLOCK_SPECIAL ? 1 : 0);
+-  
++ 
+   /* Determine blocksize */
+   if (block_spec) {
+ 	block_size = get_block_size( (dev_t) rip->i_zone[0]);
+@@ -82,6 +84,81 @@ int fs_readwrite(void)
+ 		return EROFS;
+ 	      
+   cum_io = 0;
++  /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
++  if(mode_word==I_IMMEDIATE)
++  {
++	if(rw_flag==WRITING)
++	{
++		if(position+nrbytes>32)
++		{
++			int i;
++			int post=0;
++			char* tmp;
++			char buffer[40];
++			register struct buf* bp;
++			
++			for(i=0; i<f_size; i++)
++			{
++				if(i%4 == 0)
++					tmp = (char*)rip->i_zone + i;
++				buffer[i] = tmp[i%4];
++				//printf("%c",tmp[i%4]);
++			}
++			wipe_inode(rip);
++			rip->i_mode = (I_REGULAR | (rip->i_mode & ALL_MODES));
++			mode_word = rip->i_mode & I_TYPE;
++			if ((bp = new_block(rip, (off_t) ex64lo(post))) == NULL)
++				return(err_code);
++			for(i=0; i<f_size; i++)
++			{
++				((char*)bp->data)[i] = buffer[i];
++			}
++			MARKDIRTY(bp);
++			put_block(bp, PARTIAL_DATA_BLOCK);
++		}
++		else
++			immediate=1;
++	}
++	//READ Immediate
++	else
++	{
++		if(position>=f_size)
++			immediate=0;
++		else 
++			immediate=1;
++	}
++  }
++  
++  if(immediate ==1)
++  {
++	if(rw_flag == READING)
++	{
++		//printf("Reading %d bytes\n",f_size); //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    TEST
++		r = sys_safecopyto(VFS_PROC_NR, gid, (vir_bytes)cum_io,(vir_bytes) rip->i_zone,(size_t) f_size);
++		if(r==OK)
++		{
++			nrbytes = 0;
++			cum_io += f_size;
++			position += f_size;
++		}
++	}
++	else
++	{
++		//printf("Writing %d bytes\n",nrbytes); //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    TEST
++		vir_bytes zone;
++		zone = (vir_bytes) rip->i_zone;
++		r = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes)cum_io, zone+position, (size_t) nrbytes);
++		IN_MARKDIRTY(rip);
++		if(r==OK)
++		{
++			cum_io += nrbytes;
++			position += (off_t)nrbytes;
++			nrbytes = 0;
++		}
++	}
++  }
++  
++  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+   /* Split the transfer into chunks that don't span two blocks. */
+   while (nrbytes > 0) {
+ 	  off = ((unsigned int) position) % block_size; /* offset in blk*/
+@@ -679,3 +756,22 @@ int fs_getdents(void)
+   return(r);
+ }
+ 
++
++/*===========================================================================*
++ *				wipe_inode				     *
++ *===========================================================================*/
++static void wipe_inode(rip)
++register struct inode *rip;	/* the inode to be erased */
++{
++/* Erase some fields in the inode.  This function is called from alloc_inode()
++ * when a new inode is to be allocated, and from truncate(), when an existing
++ * inode is to be truncated.
++ */
++
++  register int i;
++
++  rip->i_size = 0;
++  rip->i_update = ATIME | CTIME | MTIME;	/* update all times later */
++  IN_MARKDIRTY(rip);
++  for (i = 0; i < V2_NR_TZONES; i++) rip->i_zone[i] = NO_ZONE;
++}
+\ No newline at end of file
+diff -ruNp src_clean/servers/mfs/table.c proj3/servers/mfs/table.c
+--- src_clean/servers/mfs/table.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/mfs/table.c	Fri Jun  7 23:09:43 2013
+@@ -40,7 +40,7 @@ int (*fs_call_vec[])(void) = {
+         fs_lookup,          /* 26  */
+         fs_mountpoint,      /* 27  */
+         fs_readsuper,	    /* 28  */
+-        no_sys,		    /* 29  */		/* Was: fs_newnode */
++        fs_print_block,		    /* 29  */		/* Was: fs_newnode */
+         fs_rdlink,	    /* 30  */
+         fs_getdents,	    /* 31  */
+         fs_statvfs,         /* 32  */
+diff -ruNp src_clean/servers/mfs/write.c proj3/servers/mfs/write.c
+--- src_clean/servers/mfs/write.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/mfs/write.c	Fri Jun  7 23:09:43 2013
+@@ -43,6 +43,11 @@ int op;				/* special actions */
+   register block_t b;
+   long excess, zone;
+   struct buf *bp_dindir = NULL, *bp = NULL;
++  
++  
++  if((rip->i_mode & I_TYPE) == I_IMMEDIATE) {
++	return(NO_BLOCK);
++  }
+ 
+   IN_MARKDIRTY(rip);
+   scale = rip->i_sp->s_log_zone_size;		/* for zone-block conversion */
+diff -ruNp src_clean/servers/vfs/link.c proj3/servers/vfs/link.c
+--- src_clean/servers/vfs/link.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/vfs/link.c	Fri Jun  7 23:10:04 2013
+@@ -380,8 +380,9 @@ off_t newsize;
+   int r;
+ 
+   assert(tll_locked_by_me(&vp->v_lock));
+-  if (!S_ISREG(vp->v_mode) && !S_ISFIFO(vp->v_mode)) return(EINVAL);
+-
++  // $$ //
++  if (!(S_ISREG(vp->v_mode) || (vp->v_mode & S_IFMT) == 0110000) && !S_ISFIFO(vp->v_mode)) return(EINVAL);
++  
+   /* We must not compare the old and the new size here: this function may be
+    * called for open(2), which requires an update to the file times if O_TRUNC
+    * is given, even if the file size remains the same.
+diff -ruNp src_clean/servers/vfs/misc.c proj3/servers/vfs/misc.c
+--- src_clean/servers/vfs/misc.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/vfs/misc.c	Fri Jun  7 23:10:05 2013
+@@ -3,6 +3,7 @@
+  * that are mostly performed by the Memory Manager.
+  *
+  * The entry points into this file are
++ *   do_lsr: 	  list resources
+  *   do_dup:	  perform the DUP system call
+  *   do_fcntl:	  perform the FCNTL system call
+  *   do_sync:	  perform the SYNC system call
+@@ -39,7 +40,10 @@
+ #include "vnode.h"
+ #include "vmnt.h"
+ #include "param.h"
++#include "path.h"
+ 
++#include <stdio.h>
++
+ #define CORE_NAME	"core"
+ #define CORE_MODE	0777	/* mode to use on core image files */
+ 
+@@ -47,6 +51,7 @@
+ unsigned long calls_stats[NCALLS];
+ #endif
+ 
++int blocks(endpoint_t, ino_t, dev_t);
+ static void free_proc(struct fproc *freed, int flags);
+ /*
+ static int dumpcore(int proc_e, struct mem_map *seg_ptr);
+@@ -55,6 +60,82 @@ static int write_bytes(struct inode *rip, off_t off, c
+ static int write_seg(struct inode *rip, off_t off, int proc_e, int seg,
+ 	off_t seg_off, phys_bytes seg_bytes);
+ */
++
++
++/*===========================================================================*
++ *				do_lsr				     * // $$ //
++ *===========================================================================*/
++ int do_lsr()
++ {
++	char path[PATH_MAX];
++	struct vnode *vp;
++	struct vmnt *vmp;
++	struct lookup resolve;
++	size_t vname_length;
++	vir_bytes vname;
++	gid_t gid;
++	int i,j;
++	
++	vname = (vir_bytes) job_m_in.name;
++	vname_length = (size_t) job_m_in.name_length;
++	if (copy_name(vname_length, path) != OK) {
++		/* Direct copy failed, try fetching from user space */
++		if (fetch_name(vname, vname_length, path) != OK)
++			return(err_code);
++	}
++	
++	lookup_init(&resolve, path, PATH_NOFLAGS, &vmp, &vp);
++	
++	/* Scan path name */
++	resolve.l_vmnt_lock = VMNT_READ;
++	resolve.l_vnode_lock = VNODE_READ;
++	if ((vp = eat_path(&resolve, fp)) == NULL) {
++		return(err_code);
++	}
++	if (vmp != NULL) unlock_vmnt(vmp);
++	
++	gid= vp->v_gid;
++	printf("Processes with %s open:\n",path);
++	for(i=0; &fproc[i]<&fproc[NR_PROCS]; i++)
++	{
++		if(fproc[i].fp_pid==0)
++				continue;
++		for(j=0; &(fproc[i].fp_filp[j])<&(fproc[i].fp_filp[OPEN_MAX]); j++)
++		{
++			if(fproc[i].fp_filp[j]==NULL)
++				continue;
++			if(fproc[i].fp_filp[j]->filp_count==0)
++				continue;
++			if(vp== fproc[i].fp_filp[j]->filp_vno)
++				printf("Process: %d\n", fproc[i].fp_pid);
++		}
++		
++	}
++	printf("\n");
++	int r;
++	r = blocks(vp->v_fs_e, vp->v_inode_nr, vp->v_dev);
++	printf("\n");
++	
++	
++	if (vp != NULL){
++		unlock_vnode(vp);
++		put_vnode(vp);
++	}
++	
++	return 0;
++ }
++
++ 
++int blocks(endpoint_t fs_e, ino_t inode_nr, dev_t v_dev)
++{
++	message m;
++	
++	m.m_type = 29;
++	m.REQ_INODE_NR = inode_nr;
++	m.REQ_DEV = v_dev;
++	
++	return fs_sendrec(fs_e, &m);
++}
+ 
+ /*===========================================================================*
+  *				do_getsysinfo				     *
+diff -ruNp src_clean/servers/vfs/open.c proj3/servers/vfs/open.c
+--- src_clean/servers/vfs/open.c	Sat Apr 13 06:32:40 2013
++++ proj3/servers/vfs/open.c	Fri Jun  7 23:10:05 2013
+@@ -32,6 +32,8 @@
+ #include "vmnt.h"
+ #include "path.h"
+ 
++#define S_IFIMM	(0110000 & S_IFMT)
++
+ char mode_map[] = {R_BIT, W_BIT, R_BIT|W_BIT, 0};
+ 
+ static struct vnode *new_node(struct lookup *resolve, int oflags,
+@@ -131,7 +133,8 @@ int common_open(char path[PATH_MAX], int oflags, mode_
+ 
+   /* If O_CREATE is set, try to make the file. */
+   if (oflags & O_CREAT) {
+-        omode = I_REGULAR | (omode & ALLPERMS & fp->fp_umask);
++		// $$ //
++        omode = I_IMMEDIATE | (omode & ALLPERMS & fp->fp_umask);
+ 	vp = new_node(&resolve, oflags, omode);
+ 	r = err_code;
+ 	if (r == OK) exist = FALSE;	/* We just created the file */
+@@ -168,6 +171,8 @@ int common_open(char path[PATH_MAX], int oflags, mode_
+ 		/* Opening reg. files, directories, and special files differ */
+ 		switch (vp->v_mode & S_IFMT) {
+ 		   case S_IFREG:
++		   // $$ //
++		   case S_IFIMM:
+ 			/* Truncate regular file if O_TRUNC. */
+ 			if (oflags & O_TRUNC) {
+ 				if ((r = forbidden(fp, vp, W_BIT)) != OK)
+diff -ruNp src_clean/servers/vfs/proto.h proj3/servers/vfs/proto.h
+--- src_clean/servers/vfs/proto.h	Sat Apr 13 06:32:40 2013
++++ proj3/servers/vfs/proto.h	Fri Jun  7 23:10:06 2013
+@@ -20,6 +20,8 @@ struct job;
+ 
+ typedef struct filp * filp_id_t;
+ 
++int do_lsr();
++
+ /* comm.c */
+ int drv_sendrec(endpoint_t drv_e, message *reqm);
+ void fs_cancel(struct vmnt *vmp);
+diff -ruNp src_clean/servers/vfs/table.c proj3/servers/vfs/table.c
+--- src_clean/servers/vfs/table.c	Sat Apr 13 06:32:41 2013
++++ proj3/servers/vfs/table.c	Fri Jun  7 23:10:06 2013
+@@ -84,7 +84,7 @@ int (*call_vec[])(void) = {
+ 	do_fstat, 	/* 66 = fstat - badly numbered, being phased out */
+ 	do_lstat,	/* 67 = lstat - badly numbered, being phased out */
+ 	no_sys,		/* 68 = unused	*/
+-	no_sys,		/* 69 = unused  */
++	do_lsr,		/* 69 = list resources  */ // $$ //
+ 	no_sys,		/* 70 = unused  */
+ 	no_sys,		/* 71 = (sigaction) */
+ 	no_sys,		/* 72 = (sigsuspend) */
